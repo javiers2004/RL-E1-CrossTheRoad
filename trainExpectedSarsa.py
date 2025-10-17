@@ -121,4 +121,4 @@ def train(episodes=10000, max_steps=200, render_every=0):
     return agent
 
 if __name__ == "__main__":
-    agent = train(episodes=5000000, max_steps=200, render_every=5000000)
+    agent = train(episodes=100000, max_steps=200, render_every=5000000)

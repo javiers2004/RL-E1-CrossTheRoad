@@ -117,4 +117,4 @@ def train(episodes=10000, max_steps=200, render_every=0):
 
 if __name__ == "__main__":
     # Recomiendo muchos episodios para entrenamiento sólido
-    agent, rewards = train(episodes=5000000, max_steps=200, render_every=5000000)
+    agent, rewards = train(episodes=100000, max_steps=200, render_every=5000000)
