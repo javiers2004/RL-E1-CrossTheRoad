@@ -4,7 +4,7 @@ import time
 import pickle
 import numpy as np
 import random
-from env import FroggerVisionEnv
+from env import CrossTheRoadVisionEnv
 from torch.utils.tensorboard import SummaryWriter
 
 QFILE = "sarsa_table.pkl"
@@ -62,13 +62,13 @@ def load_sarsa(agent, path=QFILE):
         print("No SARSA table file found; starting fresh.")
 
 def train(episodes=10000, max_steps=200, render_every=0):
-    env = FroggerVisionEnv(height=14, width=12, vision=3,
-                            car_spawn_prob=0.2, meteor_prob=0.2, trail_prob=0.2)
+    env = CrossTheRoadVisionEnv(height=14, width=12, vision=3,
+                            car_spawn_prob=0.2, max_cars_per_lane=2, meteor_prob=0.2, trail_prob=0.2)
     agent = SarsaAgent(env.action_space.n, lr=0.1, gamma=0.99,
                        epsilon=1.0, min_epsilon=0.05, decay=0.9995)
 
     load_sarsa(agent)
-    writer = SummaryWriter(log_dir="runs/frogger_sarsa")
+    writer = SummaryWriter(log_dir="runs/crossTheRoad_sarsa")
 
     for ep in range(1, episodes + 1):
         obs, _ = env.reset()

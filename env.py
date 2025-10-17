@@ -4,9 +4,9 @@ import numpy as np
 import random
 import pygame
 
-class FroggerVisionEnv(gym.Env):
+class CrossTheRoadVisionEnv(gym.Env):
     """
-    Frogger-like environment with local vision window, hazards, and a river.
+    CrossTheRoad-like environment with local vision window, hazards, and a river.
     Grid values:
       0 = empty
       1 = car
@@ -21,7 +21,7 @@ class FroggerVisionEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 3}
 
     def __init__(self, height=14, width=12, vision=3,
-                car_spawn_prob=0.2, meteor_prob=0.2,
+                car_spawn_prob=0.2, max_cars_per_lane=2, meteor_prob=0.2,
                 trail_prob=0.2, seed=None):
         super().__init__()
         assert vision % 2 == 1 and vision >= 3
@@ -29,6 +29,7 @@ class FroggerVisionEnv(gym.Env):
         self.width = width
         self.vision = vision
         self.car_spawn_prob = car_spawn_prob
+        self.max_cars_per_lane = max_cars_per_lane
         self.meteor_prob = meteor_prob
         self.trail_prob = trail_prob
         self.cell_size = 48
@@ -104,7 +105,10 @@ class FroggerVisionEnv(gym.Env):
         reward = 0.0
         terminated = False
         truncated = False
+
+        # Guardar posición anterior del agente (fila y columna)
         old_row = self.agent_pos[0]
+        old_col = self.agent_pos[1]
 
         # --- Movimiento del agente ---
         if action == 0 and self.agent_pos[0] > 0:  # up
@@ -116,15 +120,16 @@ class FroggerVisionEnv(gym.Env):
         elif action == 3 and self.agent_pos[1] < self.width - 1:  # right
             self.agent_pos[1] += 1
 
-        # --- Recompensas de movimiento ---
+        # Recompensas por movimiento (puedes mantener la tuya)
+        # aquí usas old_row arriba, sigue igual
         if self.agent_pos[0] < old_row:
-            reward += 1.0   # avanzar hacia la meta
+            reward += 1.0
         elif self.agent_pos[0] > old_row:
-            reward -= 1.1   # retroceder
+            reward -= 1.1
         else:
-            reward -= 0.1  # movimiento lateral o quedarse quieto (ligero coste)
+            reward -= 0.1
 
-        # --- Mover coches y generar rastros ---
+        # --- Mover coches (lógica actualizada para detectar solo choques reales) ---
         new_trails = []
         for car in self.cars:
             row_idx = car['row'] - 1
@@ -133,9 +138,16 @@ class FroggerVisionEnv(gym.Env):
             for p in car['positions']:
                 next_p = p + dir
 
-                # Colisión con el agente
+                # Solo nos interesan las colisiones si están en la misma fila que el agente
                 if car['row'] == self.agent_pos[0]:
-                    if min(p, next_p) <= self.agent_pos[1] <= max(p, next_p):
+                    # 1) choque si el coche se mueve hacia la celda donde está ahora el agente
+                    if next_p == self.agent_pos[1]:
+                        reward = -20.0
+                        terminated = True
+                    # 2) choque por intercambio de posiciones (swap):
+                    #    el coche estaba en 'p', el agente se movió a 'p' (agent_new_col == p)
+                    #    y el coche se mueve a la columna antigua del agente (next_p == old_col)
+                    elif p == self.agent_pos[1] and next_p == old_col:
                         reward = -20.0
                         terminated = True
 
@@ -143,6 +155,7 @@ class FroggerVisionEnv(gym.Env):
                 if car.get('trail', False):
                     new_trails.append({'row': car['row'], 'col': p, 'ttl': 5})
 
+                # Mantener las posiciones válidas dentro del mapa
                 if 0 <= next_p < self.width:
                     new_positions.append(next_p)
 
@@ -153,23 +166,34 @@ class FroggerVisionEnv(gym.Env):
 
         # --- Generar nuevos coches probabilísticamente ---
         for r in range(1, self.height - 1):
-            # no generar coches en el río
             if r == self.river_row:
-                continue
+                continue  # no coches en el río
 
-            # verificar si hay coches actualmente en esta fila
+            dir = self.lanes_dir[r - 1]
+            # contar coches actuales en la fila
             cars_in_row = [car for car in self.cars if car['row'] == r]
+            n_existing = len(cars_in_row)
 
-            # si no hay coches en la fila, aplicar probabilidad de spawn
-            if not cars_in_row:
-                if self.random.random() < self.car_spawn_prob:  # ejemplo: 0.1 = 10%
-                    pos = 0 if self.lanes_dir[r - 1] == 1 else self.width - 1
-                    self.cars.append({
-                        'row': r,
-                        'positions': [pos],
-                        'trail': self.random.random() < self.trail_prob,
-                        'img_index': self.random.randint(0, len(self.raw_car_images) - 1)
-                    })
+            # si aún hay espacio para más coches
+            if n_existing < self.max_cars_per_lane:
+                # generar un nuevo coche con probabilidad car_spawn_prob
+                if self.random.random() < self.car_spawn_prob:
+                    # posición inicial según dirección
+                    if dir == 1:
+                        spawn_col = 0
+                    else:
+                        spawn_col = self.width - 1
+
+                    # evitar solapamientos
+                    occupied = {p for car in cars_in_row for p in car['positions']}
+                    if spawn_col not in occupied:
+                        self.cars.append({
+                            'row': r,
+                            'positions': [spawn_col],
+                            'trail': self.random.random() < self.trail_prob,
+                            'img_index': self.random.randint(0, len(self.raw_car_images) - 1)
+                        })
+
 
 
         # --- Meteoritos ---
@@ -285,7 +309,7 @@ class FroggerVisionEnv(gym.Env):
             pygame.init()
             self.window = pygame.display.set_mode((self.width * self.cell_size,
                                                 self.height * self.cell_size))
-            pygame.display.set_caption("Frogger RL con Río y Puente")
+            pygame.display.set_caption("CrossTheRoad RL con Río y Puente")
             self.clock = pygame.time.Clock()
 
             # Convertir y escalar imágenes ahora que display está inicializado
