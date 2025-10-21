@@ -28,7 +28,7 @@ class PolicyPlayer:
         return np.random.randint(0, 4)
 
 if __name__ == "__main__":
-    env = CrossTheRoadVisionEnv(height=14, width=12, vision=3, car_spawn_prob=0.2, max_cars_per_lane=2, meteor_prob=0.2, trail_prob=0.2)
+    env = CrossTheRoadVisionEnv(height=14, width=12, vision=3, car_spawn_prob=0.2, max_cars_per_lane=1,trail_prob=0.2)
     player = PolicyPlayer()
 
     for ep in range(10):
