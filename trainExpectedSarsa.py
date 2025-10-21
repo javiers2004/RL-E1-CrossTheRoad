@@ -109,7 +109,7 @@ def load_expected_sarsa(agent, path=QFILE):
         agent.q_table = {}
 
 
-def train(episodes=500000, max_steps=300, render_every=0):  # Aumento de episodios y pasos
+def train(episodes=1000000, max_steps=500, render_every=0):  # Aumento de episodios y pasos
     env = CrossTheRoadVisionEnv(height=14, width=12, vision=3,
                                 car_spawn_prob=0.2, max_cars_per_lane=2, trail_prob=0.2)
     # Se inicializa el agente con los valores ajustados (lr=0.01, decay=0.9999)
@@ -159,4 +159,4 @@ def train(episodes=500000, max_steps=300, render_every=0):  # Aumento de episodi
 
 if __name__ == "__main__":
     # Ajustar el número final de episodios aquí también
-    agent = train(episodes=500000, max_steps=300, render_every=0)
+    agent = train(episodes=1000000, max_steps=500, render_every=0)

@@ -10,7 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 QFILE = "q_table.pkl"
 
 class QLearningAgent:
-    def __init__(self, n_actions, lr=0.1, gamma=0.99, epsilon=1.0, min_epsilon=0.05, decay=0.9995):
+    def __init__(self, n_actions, lr=0.01, gamma=0.99, epsilon=1.0, min_epsilon=0.05, decay=0.9999):
         self.n_actions = n_actions
         self.lr = lr
         self.gamma = gamma
@@ -62,9 +62,9 @@ def load_q(agent, path=QFILE):
     else:
         print("No Q-table file found; starting fresh.")
 
-def train(episodes=10000, max_steps=200, render_every=0):
+def train(episodes=1000000, max_steps=500, render_every=0):
     env = CrossTheRoadVisionEnv(height=14, width=12, vision=3,
-                            car_spawn_prob=0.2, max_cars_per_lane=2, meteor_prob=0.2, trail_prob=0.2)
+                                car_spawn_prob=0.2, max_cars_per_lane=2, trail_prob=0.2)
     agent = QLearningAgent(env.action_space.n, lr=0.1, gamma=0.99,
                            epsilon=1.0, min_epsilon=0.05, decay=0.9995)
 
@@ -117,4 +117,4 @@ def train(episodes=10000, max_steps=200, render_every=0):
 
 if __name__ == "__main__":
     # Recomiendo muchos episodios para entrenamiento sólido
-    agent, rewards = train(episodes=100000, max_steps=200, render_every=5000000)
+    agent, rewards = train(episodes=1000000, max_steps=500, render_every=0)
