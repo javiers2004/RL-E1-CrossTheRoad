@@ -116,7 +116,7 @@ def train(episodes=1000000, max_steps=500, render_every=0):  # Aumento de episod
     agent = ExpectedSarsaAgent(env.action_space.n)
 
     load_expected_sarsa(agent)
-    writer = SummaryWriter(log_dir="runs/crossTheRoad_expected_sarsa")
+    writer = SummaryWriter(log_dir="runs")
 
     for ep in range(1, episodes + 1):
         obs, _ = env.reset()
