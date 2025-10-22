@@ -20,7 +20,6 @@ class QLearningAgent:
         self.q_table = {}  # dict: state_key -> np.array(n_actions)
 
     def state_key(self, obs):
-        # Convierte la observación a una tupla para usar como clave en Q-table
         return tuple(obs.flatten().tolist())
 
     def ensure(self, key):
@@ -40,7 +39,7 @@ class QLearningAgent:
         self.ensure(k1)
         self.ensure(k2)
         q = self.q_table[k1][action]
-        q_next = 0.0 if done else np.max(self.q_table[k2])  # Q-Learning usa max Q del siguiente estado
+        q_next = 0.0 if done else np.max(self.q_table[k2])  
         target = reward + self.gamma * q_next
         self.q_table[k1][action] += self.lr * (target - q)
 
@@ -99,7 +98,6 @@ def train(episodes=1000000, max_steps=500, render_every=0):
         writer.add_scalar("Reward/episode", total_reward, ep)
         writer.add_scalar("Epsilon/value", agent.epsilon, ep)
 
-        # Impresión periódica
         if ep % 2000 == 0:
             avg = np.mean(rewards[-50:])
             print(f"Episode {ep}/{episodes}  avg50={avg:.3f} eps={agent.epsilon:.4f}")
@@ -116,5 +114,4 @@ def train(episodes=1000000, max_steps=500, render_every=0):
     return agent, rewards
 
 if __name__ == "__main__":
-    # Recomiendo muchos episodios para entrenamiento sólido
     agent, rewards = train(episodes=1000000, max_steps=500, render_every=0)

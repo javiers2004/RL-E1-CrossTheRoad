@@ -99,7 +99,7 @@ def train(episodes=1000000, max_steps=500, render_every=0):
 
         if ep % 2000 == 0:
             save_sarsa(agent)
-            avg50 = np.mean([total_reward])  # simplificado
+            avg50 = np.mean([total_reward])  
             print(f"Episode {ep}/{episodes}  reward={total_reward:.2f} eps={agent.epsilon:.4f}")
 
     save_sarsa(agent)

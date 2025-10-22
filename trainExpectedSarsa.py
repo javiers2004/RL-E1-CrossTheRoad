@@ -13,7 +13,7 @@ QFILE = "expected_sarsa_table.pkl"
 
 class ExpectedSarsaAgent:
     def __init__(self, n_actions, lr=0.01, gamma=0.99, epsilon=1.0, min_epsilon=0.05,
-                 decay=0.9999):  # HIPERPARÁMETROS AJUSTADOS
+                 decay=0.9999): 
         self.n_actions = n_actions
         self.lr = lr
         self.gamma = gamma
@@ -23,10 +23,9 @@ class ExpectedSarsaAgent:
         self.q_table = {}  # dict: state_key -> np.array(n_actions)
 
     def state_key(self, obs):
-        # Asegura que el estado sea un array 1D antes de convertirlo a tupla
         if obs.ndim > 1:
             obs = obs.flatten()
-        return tuple(obs.tolist())  # Obs ya debe ser 1D de _get_obs
+        return tuple(obs.tolist()) 
 
     def ensure(self, key):
         if key not in self.q_table:
@@ -67,7 +66,6 @@ class ExpectedSarsaAgent:
 
         q = self.q_table[k1][action]
 
-        # Necesitamos los valores Q del siguiente estado para Expected SARSA
         q_next_values = self.q_table[k2]
         q_next = 0.0 if done else self.expected_value(q_next_values)
 
@@ -109,10 +107,9 @@ def load_expected_sarsa(agent, path=QFILE):
         agent.q_table = {}
 
 
-def train(episodes=1000000, max_steps=500, render_every=0):  # Aumento de episodios y pasos
+def train(episodes=1000000, max_steps=500, render_every=0):  
     env = CrossTheRoadVisionEnv(height=14, width=12, vision=3,
                                 car_spawn_prob=0.2, max_cars_per_lane=2, trail_prob=0.2)
-    # Se inicializa el agente con los valores ajustados (lr=0.01, decay=0.9999)
     agent = ExpectedSarsaAgent(env.action_space.n)
 
     load_expected_sarsa(agent)
@@ -122,7 +119,6 @@ def train(episodes=1000000, max_steps=500, render_every=0):  # Aumento de episod
         obs, _ = env.reset()
         total_reward = 0.0
 
-        # Para el seguimiento del progreso
         initial_q_size = len(agent.q_table)
 
         for step in range(max_steps):
@@ -145,7 +141,7 @@ def train(episodes=1000000, max_steps=500, render_every=0):  # Aumento de episod
         writer.add_scalar("Epsilon/value", agent.epsilon, ep)
         writer.add_scalar("QTable/size", len(agent.q_table), ep)
 
-        if ep % 5000 == 0:  # Guardar y reportar más frecuentemente
+        if ep % 5000 == 0:  
             save_expected_sarsa(agent)
             print(
                 f"Episode {ep}/{episodes} | R={total_reward:.2f} | Eps={agent.epsilon:.4f} | Q Size={len(agent.q_table)}")
