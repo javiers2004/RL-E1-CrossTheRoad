@@ -316,7 +316,7 @@ class CrossTheRoadVisionEnv(gym.Env):
             pygame.init()
             self.window = pygame.display.set_mode((self.width * self.cell_size,
                                                    self.height * self.cell_size))
-            pygame.display.set_caption("CrossTheRoad RL with Double River and Traffic Lights")
+            pygame.display.set_caption("CrossTheRoad RL Environment")
             self.clock = pygame.time.Clock()
 
             # Initialize car images (using placeholders if necessary)

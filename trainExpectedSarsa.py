@@ -20,7 +20,7 @@ class ExpectedSarsaAgent:
         self.epsilon = epsilon
         self.min_epsilon = min_epsilon
         self.decay = decay
-        self.q_table = {}  # dict: state_key -> np.array(n_actions)
+        self.q_table = {}  
 
     def state_key(self, obs):
         if obs.ndim > 1:
@@ -39,12 +39,9 @@ class ExpectedSarsaAgent:
         return int(np.argmax(self.q_table[key]))
 
     def expected_value(self, values):
-        """Calcula el valor esperado bajo epsilon-greedy"""
-        # Note: 'values' here is np.array, not a key, so ensure() is unnecessary
         max_value = np.max(values)
         n_actions = len(values)
 
-        # Calculate the number of actions that achieve the max value (ties)
         n_greedy = np.sum(values == max_value)
 
         non_greedy_prob = self.epsilon / n_actions
@@ -154,5 +151,4 @@ def train(episodes=1000000, max_steps=500, render_every=0):
 
 
 if __name__ == "__main__":
-    # Ajustar el número final de episodios aquí también
     agent = train(episodes=1000000, max_steps=500, render_every=0)
