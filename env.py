@@ -19,6 +19,8 @@ class CrossTheRoadVisionEnv(gym.Env):
     """
     metadata = {"render_modes": ["human"], "render_fps": 3}
 
+    # Factor de escala para el agente (1.0 = tamaño de la celda, 1.5 = 50% más grande)
+    AGENT_SCALE_FACTOR = 1.5
 
     # To initialize the environment with custom parameters
     def __init__(self, height=14, width=12, vision=3,
@@ -26,17 +28,18 @@ class CrossTheRoadVisionEnv(gym.Env):
                  trail_prob=0.2, seed=None):
         super().__init__()
         assert vision % 2 == 1 and vision >= 3  # Size of the observation window (must be odd and at least 3)
-        self.height = height    # Number of rows
-        self.width = width    # Number of columns
-        self.vision = vision    # Size of the observation window
-        self.car_spawn_prob = car_spawn_prob    # Probability of spawning a car in each lane each step
-        self.max_cars_per_lane = max_cars_per_lane    # Maximum number of cars allowed in each lane
-        self.trail_prob = trail_prob    # Probability of spawning a trail behind a car
+        self.height = height  # Number of rows
+        self.width = width  # Number of columns
+        self.vision = vision  # Size of the observation window
+        self.car_spawn_prob = car_spawn_prob  # Probability of spawning a car in each lane each step
+        self.max_cars_per_lane = max_cars_per_lane  # Maximum number of cars allowed in each lane
+        self.trail_prob = trail_prob  # Probability of spawning a trail behind a car
         self.cell_size = 48  # Size of each cell in pixels for rendering
         self.action_space = spaces.Discrete(4)  # 0=up,1=down,2=left,3=right
         self.num_car_lanes = self.height - 3  # Exclude goal and 2 river rows
-        self.observation_space = spaces.Box(low=0, high=8,  # Observation space (vision + log positions + traffic light states)
-                                            shape=(vision * vision + 4 + 1,), 
+        self.observation_space = spaces.Box(low=0, high=8,
+                                            # Observation space (vision + log positions + traffic light states)
+                                            shape=(vision * vision + 4 + 1,),
                                             dtype=np.int8)
 
         # Initialize variables
@@ -53,36 +56,41 @@ class CrossTheRoadVisionEnv(gym.Env):
                 return pygame.image.load(path)
             except pygame.error:
                 print(f"Warning: Image not found at {path}. Using placeholder.")
-                return pygame.Surface((48, 48), pygame.SRCALPHA)
+                # Return a simple placeholder surface
+                surf = pygame.Surface((self.cell_size, self.cell_size), pygame.SRCALPHA)
+                surf.fill((255, 0, 255, 128))  # Magenta placeholder
+                return surf
 
-        self.raw_car_images = []    # Load car images
+        self.raw_car_images = []  # Load car images
         for i in range(1, 6):
             img_path = os.path.join(base_path, "images", f"car{i}.png")
             self.raw_car_images.append(load_img(img_path))
 
-        self.raw_smoke_images = []   # Load smoke images
+        self.raw_smoke_images = []  # Load smoke images
         for i in range(1, 5):
             img_path = os.path.join(base_path, "images", f"smoke{i}.png")
             self.raw_smoke_images.append(load_img(img_path))
 
-        self.raw_wood_image = load_img(os.path.join(base_path, "images", "log.png"))    # Load log image
-        self.raw_water_image = load_img(os.path.join(base_path, "images", "water.png")) # Load water image
+        self.raw_wood_image = load_img(os.path.join(base_path, "images", "log.png"))  # Load log image
+        self.raw_water_image = load_img(os.path.join(base_path, "images", "water.png"))  # Load water image
+        self.raw_agent_image = load_img(os.path.join(base_path, "images", "agent.png"))  # Load agent image (PNG)
 
-        # Initialize final images
+        # Initialize final images (CORRECCIÓN: Inicializar 'agent_image' a None)
         self.car_images = None
         self.smoke_images = None
         self.wood_image = None
         self.water_image = None
+        self.agent_image = None  # Agente escalado
 
         self.reset()
 
-#  Reset the environment to the initial state
+    #  Reset the environment to the initial state
     def reset(self, seed=None, options=None):
         if seed is not None:
             self.random.seed(seed)
             self.np_random.seed(seed)
 
-        self.agent_pos = [self.height - 1, self.width // 2] # Start at bottom center
+        self.agent_pos = [self.height - 1, self.width // 2]  # Start at bottom center
         self.cars = []  # Empty list of cars at start
         self.trails = []  # Empty list of trails at start
         self.t = 0  # Time step counter
@@ -103,13 +111,12 @@ class CrossTheRoadVisionEnv(gym.Env):
 
         return self._get_obs(), {}
 
-
-# Step the environment
+    # Step the environment
     def step(self, action):
-        self.t += 1 # Increment time step
-        reward = 0.0    # Initialize reward
+        self.t += 1  # Increment time step
+        reward = 0.0  # Initialize reward
         terminated = False  # Whether the episode is terminated
-        truncated = False   # Whether the episode is truncated
+        truncated = False  # Whether the episode is truncated
 
         # Update traffic lights
         self.traffic_light_timer += 1
@@ -123,8 +130,8 @@ class CrossTheRoadVisionEnv(gym.Env):
 
         # Save agent's previous position
         old_row = self.agent_pos[0]
-        
-        # Agent movement 
+
+        # Agent movement
         if action == 0 and self.agent_pos[0] > 0:  # UP direction
             self.agent_pos[0] -= 1
         elif action == 1 and self.agent_pos[0] < self.height - 1:  # DOWN direction
@@ -134,7 +141,7 @@ class CrossTheRoadVisionEnv(gym.Env):
         elif action == 3 and self.agent_pos[1] < self.width - 1:  # RIGHT direction
             self.agent_pos[1] += 1
 
-        #Movement reward/penalty
+        # Movement reward/penalty
         # ---------------------------------
         if self.agent_pos[0] < old_row:
             reward += 0.9  # Move forward (+1-0.1 reward)
@@ -145,14 +152,14 @@ class CrossTheRoadVisionEnv(gym.Env):
         # ---------------------------------
 
         # Move logs
-        self.logs_row1 = [(c + 1) % self.width for c in self.logs_row1] # Move right
-        self.logs_row2 = [(c - 1) % self.width for c in self.logs_row2] # Move left
+        self.logs_row1 = [(c + 1) % self.width for c in self.logs_row1]  # Move right
+        self.logs_row2 = [(c - 1) % self.width for c in self.logs_row2]  # Move left
 
         # Move cars (only if traffic light is green)
         new_trails = []
         for car in self.cars:
             row_idx = car['row'] - 1
-            is_green = self.traffic_lights[row_idx] == 1    
+            is_green = self.traffic_lights[row_idx] == 1
             if is_green:
                 dir = self.lanes_dir[row_idx]
                 new_positions = []
@@ -177,7 +184,7 @@ class CrossTheRoadVisionEnv(gym.Env):
                         reward = -150.0  # (-150 penalty)
                         terminated = True
                         break
-                    
+
         # Remove cars that have moved out of bounds
         self.trails.extend(new_trails)
         self.cars = [car for car in self.cars if car['positions']]
@@ -198,11 +205,11 @@ class CrossTheRoadVisionEnv(gym.Env):
                     self.cars.append({
                         'row': r,
                         'positions': [spawn_col],
-                        'trail': self.random.random() < self.trail_prob,    # Probability of leaving a trail
+                        'trail': self.random.random() < self.trail_prob,  # Probability of leaving a trail
                         'img_index': self.random.randint(0, len(self.raw_car_images) - 1)
                     })
 
-        # Update trails 
+        # Update trails
         for tr in self.trails:
             tr['ttl'] -= 1
         self.trails = [t for t in self.trails if t['ttl'] > 0]
@@ -246,7 +253,7 @@ class CrossTheRoadVisionEnv(gym.Env):
 
     # Get the current observation
     def _get_obs(self):
-        #Initialize grid
+        # Initialize grid
         grid = np.zeros((self.height, self.width), dtype=np.int8)
 
         # River and logs
@@ -297,19 +304,18 @@ class CrossTheRoadVisionEnv(gym.Env):
 
         # Find the first car lane traffic light (skip river rows)
         first_car_lane_light_idx = 0
-        for r_idx in range(len(self.traffic_lights)): 
-            r = r_idx + 1 
+        for r_idx in range(len(self.traffic_lights)):
+            r = r_idx + 1
             if r not in [self.river_row1, self.river_row2]:
                 first_car_lane_light_idx = r_idx
                 break
-        
+
         obs_extra[4] = self.traffic_lights[first_car_lane_light_idx]
 
         obs_flat = np.concatenate([obs_window.flatten(), obs_extra])
         return obs_flat
 
-
-# Render the environment
+    # Render the environment
     def render(self):
 
         if self.window is None:
@@ -318,6 +324,9 @@ class CrossTheRoadVisionEnv(gym.Env):
                                                    self.height * self.cell_size))
             pygame.display.set_caption("CrossTheRoad RL Environment")
             self.clock = pygame.time.Clock()
+
+            # Tamaño objetivo para el agente más grande
+            target_size = int(self.cell_size * self.AGENT_SCALE_FACTOR)
 
             # Initialize car images (using placeholders if necessary)
             if not self.car_images:
@@ -343,6 +352,12 @@ class CrossTheRoadVisionEnv(gym.Env):
                 self.water_image = pygame.transform.scale(
                     self.raw_water_image.convert_alpha() if self.raw_water_image.get_alpha() is not None else self.raw_water_image.convert(),
                     (self.width * self.cell_size, self.cell_size))
+
+            # Initialize agent image (ESCALADO y uso de AGENT_SCALE_FACTOR)
+            if not self.agent_image and self.raw_agent_image:
+                self.agent_image = pygame.transform.scale(
+                    self.raw_agent_image.convert_alpha() if self.raw_agent_image.get_alpha() is not None else self.raw_agent_image.convert(),
+                    (target_size, target_size))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -407,13 +422,27 @@ class CrossTheRoadVisionEnv(gym.Env):
                 rect.topleft = (p * self.cell_size, car["row"] * self.cell_size)
                 self.window.blit(rotated, rect)
 
-        #   Agent
-        a_rect = pygame.Rect(self.agent_pos[1] * self.cell_size + 8,
-                             self.agent_pos[0] * self.cell_size + 8,
-                             self.cell_size - 16, self.cell_size - 16)
-        pygame.draw.ellipse(self.window, (80, 210, 120), a_rect)
-        pygame.draw.circle(self.window, (255, 255, 255),
-                           (a_rect.left + a_rect.width - 12, a_rect.top + 10), 4)
+        #   Agent (PNG más grande y centrado)
+        if self.agent_image:
+            # Calcular el desplazamiento para centrar la imagen más grande en la celda
+            image_width = self.agent_image.get_width()
+            offset = (image_width - self.cell_size) // 2
+
+            rect = self.agent_image.get_rect()
+
+            # Aplicar el desplazamiento a la posición de la celda
+            rect.topleft = (self.agent_pos[1] * self.cell_size - offset,
+                            self.agent_pos[0] * self.cell_size - offset)
+
+            self.window.blit(self.agent_image, rect)
+        else:
+            # Fallback drawing (dibujo de respaldo)
+            a_rect = pygame.Rect(self.agent_pos[1] * self.cell_size + 8,
+                                 self.agent_pos[0] * self.cell_size + 8,
+                                 self.cell_size - 16, self.cell_size - 16)
+            pygame.draw.ellipse(self.window, (80, 210, 120), a_rect)
+            pygame.draw.circle(self.window, (255, 255, 255),
+                               (a_rect.left + a_rect.width - 12, a_rect.top + 10), 4)
 
         pygame.display.flip()
         self.clock.tick(self.metadata.get("render_fps", 5))
